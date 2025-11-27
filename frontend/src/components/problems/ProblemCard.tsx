@@ -1,9 +1,9 @@
-import { TrendingUp, Users, CheckCircle2 } from 'lucide-react';
+// src/components/problems/ProblemCard.tsx
 import { Link } from 'react-router-dom';
 
 interface ProblemCardProps {
   problem: any;
-  onClick: () => void;
+  onClick?: () => void; // made optional
 }
 
 const difficultyColors = {
@@ -25,13 +25,13 @@ const difficultyColors = {
 };
 
 export default function ProblemCard({ problem, onClick }: ProblemCardProps) {
-  const diffColor = difficultyColors[problem.difficulty as keyof typeof difficultyColors];
+  const diffColor = difficultyColors[(problem.difficulty || 'medium') as keyof typeof difficultyColors];
   const id = problem.id || problem._id || problem.problemNumber;
 
-  // wrapper props: call onClick if provided, and also navigate via Link
-  const handleClick = (e: React.MouseEvent) => {
+  // wrapper props: call onClick if provided
+    const handleClick = () => {
     if (onClick) {
-      try { onClick(); } catch (err) { /* ignore */ }
+      try { onClick(); } catch (_err) { /* ignore */ }
     }
     // Link will navigate automatically
   };
@@ -41,9 +41,7 @@ export default function ProblemCard({ problem, onClick }: ProblemCardProps) {
       <div
         className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 hover:bg-gray-800/50 transition-all cursor-pointer group"
       >
-        {/* ...rest of existing markup without change... */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          {/* existing content unchanged */}
           <div className="flex-1">
             <div className="flex items-center space-x-3 mb-3">
               <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">
@@ -62,7 +60,6 @@ export default function ProblemCard({ problem, onClick }: ProblemCardProps) {
               </p>
             )}
 
-            {/* tags and category unchanged */}
             <div className="flex flex-wrap gap-2">
               {problem.category && (
                 <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-xs rounded-full border border-blue-500/20">
@@ -89,26 +86,7 @@ export default function ProblemCard({ problem, onClick }: ProblemCardProps) {
             </div>
           </div>
 
-          <div className="flex sm:flex-col items-center sm:items-end gap-4 sm:gap-2">
-            {problem.acceptance_rate !== undefined && (
-              <div className="flex items-center space-x-2 text-sm">
-                <TrendingUp className="w-4 h-4 text-green-400" />
-                <span className="text-gray-400">{Number(problem.acceptance_rate).toFixed(1)}%</span>
-              </div>
-            )}
-            {problem.total_submissions !== undefined && (
-              <div className="flex items-center space-x-2 text-sm">
-                <Users className="w-4 h-4 text-blue-400" />
-                <span className="text-gray-400">{problem.total_submissions}</span>
-              </div>
-            )}
-            {problem.total_accepted !== undefined && (
-              <div className="flex items-center space-x-2 text-sm">
-                <CheckCircle2 className="w-4 h-4 text-cyan-400" />
-                <span className="text-gray-400">{problem.total_accepted}</span>
-              </div>
-            )}
-          </div>
+          {/* Right-side stats removed for a cleaner UI */}
         </div>
       </div>
     </Link>

@@ -129,27 +129,95 @@ export const submissionsAPI = {
 };
 
 // Dashboard API
+type RawDashboard = {
+  username?: string;
+  welcomeMessage?: string;
+
+  totalSolved?: number;
+  total_solved?: number;
+
+  totalSubmissions?: number;
+  total_submissions?: number;
+
+  acceptanceRate?: number;
+  acceptance_rate?: number;
+
+  currentStreak?: number;
+  current_streak?: number;
+
+  rank?: number;
+  points?: number;
+
+  activity?: Array<{
+    date: string;
+    value?: number;
+    submissions?: number;
+    solved?: number;
+  }>;
+};
+
+export type DashboardData = {
+  username?: string;
+  welcomeMessage?: string;
+  totalSolved: number;
+  totalSubmissions: number;
+  acceptanceRate: number;
+  currentStreak: number;
+  rank: number;
+  points: number;
+  activity: Array<{ date: string; value: number }>;
+};
+
 export const dashboardAPI = {
-  getDashboardData: async () => {
-    return apiRequest<{
-      username?: string;
-      welcomeMessage?: string;
-      totalSolved?: number;
-      totalSubmissions?: number;
-      acceptanceRate?: number;
-      currentStreak?: number;
-      // optional activity array from backend:
-      activity?: Array<{ date: string; submissions?: number; solved?: number; value?: number }>;
-      // other optional fields
-      [k: string]: any;
-    }>("/dashboard");
+  getDashboardData: async (opts?: { range?: string }): Promise<DashboardData> => {
+    const qs = opts?.range ? `?range=${encodeURIComponent(opts.range)}` : "";
+    const raw = await apiRequest<RawDashboard>(`/dashboard${qs}`);
+
+    // normalize activity to simple { date, value } points
+    const activity: DashboardData["activity"] = (raw.activity ?? []).map((d) => ({
+      date: d.date,
+      value: Number(d.value ?? d.submissions ?? d.solved ?? 0),
+    }));
+
+    return {
+      username: raw.username,
+      welcomeMessage: raw.welcomeMessage,
+      totalSolved: raw.totalSolved ?? raw.total_solved ?? 0,
+      totalSubmissions: raw.totalSubmissions ?? raw.total_submissions ?? 0,
+      acceptanceRate: raw.acceptanceRate ?? raw.acceptance_rate ?? 0,
+      currentStreak: raw.currentStreak ?? raw.current_streak ?? 0,
+      rank: raw.rank ?? 0,
+      points: raw.points ?? 0,
+      activity,
+    };
   },
 };
 
 // Leaderboard API
 export const leaderboardAPI = {
   getLeaderboard: async () => {
-    return apiRequest<Array<{ username: string; totalSolved: number; solvedByDifficulty?: any }>>("/leaderboard");
+    // Accept both camelCase and snake_case from backend
+    return apiRequest<Array<{
+      username?: string;
+      email?: string;
+      rank?: number;
+      totalSolved?: number;
+      total_solved?: number;
+      solvedByDifficulty?: {
+        easy?: number;
+        medium?: number;
+        hard?: number;
+      };
+      solved_by_difficulty?: {
+        easy?: number;
+        medium?: number;
+        hard?: number;
+      };
+      easySolved?: number;
+      mediumSolved?: number;
+      hardSolved?: number;
+      user?: { username?: string; email?: string };
+    }>>("/leaderboard");
   },
 };
 

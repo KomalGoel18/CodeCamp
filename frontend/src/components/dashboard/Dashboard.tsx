@@ -1,10 +1,10 @@
 // frontend/src/components/dashboard/Dashboard.tsx
 import { useEffect, useState } from 'react';
-import { TrendingUp, Target, Flame, Trophy, Clock, CheckCircle2, Activity } from 'lucide-react';
+import { Target, Flame, Trophy, CheckCircle2, Activity } from 'lucide-react';
 import { dashboardAPI, submissionsAPI } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import StatsCard from './StatsCard';
-import ActivityChart from './ActivityChart';
+//import ActivityChart from './ActivityChart';
 import RecentActivity from './RecentActivity';
 
 export default function Dashboard() {
@@ -21,65 +21,64 @@ export default function Dashboard() {
   const [recentSubmissions, setRecentSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [welcomeMessage, setWelcomeMessage] = useState('Welcome back!');
+  const [range, setRange] = useState<'7D' | '30D' | '1Y'>('7D');
 
   useEffect(() => {
     if (user) {
       fetchDashboardData();
     }
+    // refetch whenever user or range changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, range]);
 
   const fetchDashboardData = async () => {
-    if (!user) return;
+  if (!user) return;
 
-    try {
-      // Fetch dashboard data from backend
-      const dashboardData = await dashboardAPI.getDashboardData();
-      
-      // Fetch recent submissions
-      const submissions = await submissionsAPI.getSubmissionsByUser();
+  try {
+    // 1) Dashboard numbers directly from backend (with range)
+    const dashboardData = await dashboardAPI.getDashboardData({ range });
 
-      setWelcomeMessage(dashboardData.welcomeMessage || `Welcome back, ${user.username}!`);
-      
-      // count accepted submissions (case-insensitive)
-      const accepted = submissions.filter((s: any) => String(s.verdict || s.status || '').toLowerCase() === 'accepted').length;
-      const total = submissions.length;
-      
-      setStats((prev) => ({
-        ...prev,
-        problemsSolved: dashboardData.totalSolved ?? dashboardData.totalSolved ?? 0,
-        totalSubmissions: dashboardData.totalSubmissions ?? total ?? 0,
-        acceptanceRate: typeof dashboardData.acceptanceRate !== 'undefined'
-          ? dashboardData.acceptanceRate
-          : (total > 0 ? Math.round((accepted / total) * 100) : 0),
-        streak: dashboardData.currentStreak ?? dashboardData.current_streak ?? 0,
-        rank: dashboardData.rank ?? 0,
-        points: dashboardData.points ?? 0,
-        activity: dashboardData.activity ?? [],
-      }));
+    // 2) Submissions only for recent activity list & chart fallback
+    const submissions = await submissionsAPI.getSubmissionsByUser();
 
-      // Transform submissions to match expected format
-      const transformedSubmissions = submissions.slice(0, 10).map((sub: any) => ({
-        id: sub._id,
-        problem_id: sub.problem?._id || sub.problem,
-        language: sub.language,
-        status: (sub.verdict || sub.status || '').toLowerCase() || 'pending',
-        runtime: sub.executionTime,
-        memory: sub.memory,
-        created_at: sub.createdAt || sub.created_at,
-        problems: sub.problem ? {
-          title: sub.problem.title,
-          difficulty: sub.problem.difficulty,
-        } : null,
-      }));
+    setWelcomeMessage(
+      dashboardData.welcomeMessage || `Welcome back, ${user.username}!`
+    );
 
-      setRecentSubmissions(transformedSubmissions);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setStats({
+      problemsSolved: dashboardData.totalSolved,
+      totalSubmissions: dashboardData.totalSubmissions,
+      acceptanceRate: dashboardData.acceptanceRate,
+      streak: dashboardData.currentStreak,
+      rank: dashboardData.rank,
+      points: dashboardData.points,
+      activity: dashboardData.activity,
+    });
+
+    // Recent activity list (purely backend data, just reshaped)
+    const transformedSubmissions = submissions.slice(0, 10).map((sub: any) => ({
+      id: sub._id,
+      problem_id: sub.problem?._id || sub.problem,
+      language: sub.language,
+      status: (sub.verdict || sub.status || '').toLowerCase() || 'pending',
+      runtime: sub.executionTime,
+      memory: sub.memory,
+      created_at: sub.createdAt || sub.created_at,
+      problems: sub.problem
+        ? {
+            title: sub.problem.title,
+            difficulty: sub.problem.difficulty,
+          }
+        : null,
+    }));
+
+    setRecentSubmissions(transformedSubmissions);
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (loading) {
     return (
@@ -126,28 +125,6 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2">
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Activity Overview</h2>
-                <div className="flex space-x-2">
-                  <button className="px-3 py-1 text-sm bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/20">
-                    7D
-                  </button>
-                  <button className="px-3 py-1 text-sm text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors">
-                    30D
-                  </button>
-                  <button className="px-3 py-1 text-sm text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors">
-                    1Y
-                  </button>
-                </div>
-              </div>
-              {/* pass backend activity if present; fallback to recent submissions */}
-              <ActivityChart data={stats.activity} submissions={recentSubmissions} />
-            </div>
-          </div>
-
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
             <h2 className="text-xl font-bold text-white mb-6">Your Stats</h2>
             <div className="space-y-4">
@@ -163,35 +140,14 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-cyan-500/10 p-2 rounded-lg">
-                    <TrendingUp className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Total Points</p>
-                    <p className="text-lg font-semibold text-white">{stats.points}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-green-500/10 p-2 rounded-lg">
-                    <Clock className="w-5 h-5 text-green-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Avg. Time</p>
-                    <p className="text-lg font-semibold text-white">24m</p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
 
-        <RecentActivity submissions={recentSubmissions} />
+        <div className="bg-gray-900border-gray-800 rounded-xl p-6">
+  <RecentActivity submissions={recentSubmissions} />
+</div>
+
       </div>
-    </div>
   );
 }

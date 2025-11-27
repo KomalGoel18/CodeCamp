@@ -20,12 +20,14 @@ function ProtectedApp() {
 
   return (
     <>
-      <Navbar currentPage="dashboard" onNavigate={() => {}} />
+      {/* Navbar will use react-router navigate if onNavigate not provided */}
+      <Navbar />
       <Routes>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/problems" element={<ProblemsPage />} />
         <Route path="/problem/:id" element={<ProblemDetailPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </>
   );
@@ -37,9 +39,8 @@ export default function App() {
       <Routes>
         {/* Auth Routes */}
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<SignupPage onSwitchToLogin={() => {}} />} />
+        <Route path="/register" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ResetPasswordPage />} />
-
         {/* Protected App */}
         <Route path="/*" element={<ProtectedApp />} />
       </Routes>
