@@ -1,6 +1,22 @@
 // frontend/src/lib/api.ts
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "https://solveon-backend.onrender.com/api";
+// Supports both Vite-style and Next.js-style env naming (without forcing a framework change).
+// If no env var is set and we're running on localhost, default to local backend for dev.
+const rawBaseUrl = (() => {
+  const viteBase = (import.meta as any)?.env?.VITE_API_BASE_URL;
+  const nextBase = (import.meta as any)?.env?.NEXT_PUBLIC_API_URL;
+  if (viteBase) return viteBase;
+  if (nextBase) return nextBase;
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://localhost:5000/api";
+    }
+  }
+  return "https://solveon-backend.onrender.com/api";
+})();
+
+export const API_BASE_URL = String(rawBaseUrl).replace(/\/$/, ""); // Remove trailing slash if present
+
 
 // Helper function to get auth token from localStorage
 export const getToken = (): string | null => {
@@ -24,6 +40,8 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   // Use Record<string,string> so we can safely assign Authorization
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
     ...(options.headers as Record<string, string> | undefined),
   };
 
@@ -31,9 +49,13 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+
+  const response = await fetch(url, {
     ...options,
     headers,
+    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -114,16 +136,16 @@ export const problemsAPI = {
 // Submissions API
 export const submissionsAPI = {
   submitSolution: async (problemIdentifier: string | number, code: string, language: string) => {
-  const payload: any = { code, language };
-  const s = String(problemIdentifier);
-  if (/^[0-9a-fA-F]{24}$/.test(s)) payload.problemId = s;
-  else if (!Number.isNaN(Number(s))) payload.problemNumber = Number(s);
-  else payload.problemId = s; // fallback
-  return apiRequest<{ message: string; submission: any }>("/submissions", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-},
+    const payload: any = { code, language };
+    const s = String(problemIdentifier);
+    if (/^[0-9a-fA-F]{24}$/.test(s)) payload.problemId = s;
+    else if (!Number.isNaN(Number(s))) payload.problemNumber = Number(s);
+    else payload.problemId = s; // fallback
+    return apiRequest<{ message: string; submission: any }>("/submissions", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
 
   getSubmissionsByUser: async () => {
     return apiRequest<any[]>("/submissions/user");
@@ -134,42 +156,79 @@ export const submissionsAPI = {
   },
 };
 
+// Users API
+export type MyProfile = {
+  username?: string;
+  email?: string;
+  totalSolved?: number;
+  totalSubmissions?: number;
+  solvedByDifficulty?: { easy?: number; medium?: number; hard?: number };
+  lastSolvedAt?: string | null;
+  streak?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export const usersAPI = {
+  getMyProfile: async (): Promise<MyProfile> => {
+    return apiRequest<MyProfile>("/users/me");
+  },
+
+  updateMyProfile: async (payload: {
+    username?: string;
+    email?: string;
+  }) => {
+    return apiRequest<MyProfile>("/users/me", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getPublicProfile: async (username: string) => {
+    return apiRequest<{
+      username: string;
+      totalSolved: number;
+      totalSubmissions: number;
+      streak: number;
+      createdAt: string;
+    }>(`/users/public/${username}`);
+  },
+};
+
 // Tests API – run code against sample tests for a problem
 export const testsAPI = {
   // frontend/src/lib/api.ts (testsAPI)
-runTests: async (problemIdentifier: string | number, code: string, language: string) => {
-  const payload: any = { code, language };
-  const s = String(problemIdentifier);
-  if (/^[0-9a-fA-F]{24}$/.test(s)) payload.problemId = s;
-  else if (!Number.isNaN(Number(s))) payload.problemNumber = Number(s);
-  else payload.problemId = s;
-  return apiRequest<{ passed: number; total: number; results: any[] }>("/tests/run", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-},
+  runTests: async (problemIdentifier: string | number, code: string, language: string) => {
+    const payload: any = { code, language };
+    const s = String(problemIdentifier);
+    if (/^[0-9a-fA-F]{24}$/.test(s)) payload.problemId = s;
+    else if (!Number.isNaN(Number(s))) payload.problemNumber = Number(s);
+    else payload.problemId = s;
+    return apiRequest<{ passed: number; total: number; results: any[] }>("/tests/run", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
 };
 
 // Dashboard API
 type RawDashboard = {
   username?: string;
   welcomeMessage?: string;
-
   totalSolved?: number;
   total_solved?: number;
-
   totalSubmissions?: number;
   total_submissions?: number;
-
   acceptanceRate?: number;
   acceptance_rate?: number;
-
   currentStreak?: number;
   current_streak?: number;
-
+  personalBestStreak?: number;
   rank?: number;
+  percentile?: number;
   points?: number;
-
+  difficultySummary?: { easy?: number; medium?: number; hard?: number };
+  problemTotals?: { easy?: number; medium?: number; hard?: number; total?: number };
   activity?: Array<{
     date: string;
     value?: number;
@@ -185,8 +244,12 @@ export type DashboardData = {
   totalSubmissions: number;
   acceptanceRate: number;
   currentStreak: number;
+  personalBestStreak: number;
   rank: number;
+  percentile: number;
   points: number;
+  difficultySummary: { easy: number; medium: number; hard: number };
+  problemTotals: { easy: number; medium: number; hard: number; total: number };
   activity: Array<{ date: string; value: number }>;
 };
 
@@ -195,30 +258,56 @@ export const dashboardAPI = {
     const qs = opts?.range ? `?range=${encodeURIComponent(opts.range)}` : "";
     const raw = await apiRequest<RawDashboard>(`/dashboard${qs}`);
 
-    // normalize activity to simple { date, value } points
     const activity: DashboardData["activity"] = (raw.activity ?? []).map((d) => ({
       date: d.date,
       value: Number(d.value ?? d.submissions ?? d.solved ?? 0),
     }));
 
+    const totalSolved = raw.totalSolved ?? raw.total_solved ?? 0;
+    const totalSubmissions = raw.totalSubmissions ?? raw.total_submissions ?? 0;
+
+    const diff = raw.difficultySummary ?? {};
+    const difficultySummary = {
+      easy: diff.easy ?? 0,
+      medium: diff.medium ?? 0,
+      hard: diff.hard ?? 0,
+    };
+
+    const pt = raw.problemTotals ?? {};
+    const problemTotals = {
+      easy: pt.easy ?? 0,
+      medium: pt.medium ?? 0,
+      hard: pt.hard ?? 0,
+      total: pt.total ?? 0,
+    };
+
     return {
       username: raw.username,
       welcomeMessage: raw.welcomeMessage,
-      totalSolved: raw.totalSolved ?? raw.total_solved ?? 0,
-      totalSubmissions: raw.totalSubmissions ?? raw.total_submissions ?? 0,
-      acceptanceRate: raw.acceptanceRate ?? raw.acceptance_rate ?? 0,
+      totalSolved,
+      totalSubmissions,
+      acceptanceRate: raw.acceptanceRate ?? 0,
       currentStreak: raw.currentStreak ?? raw.current_streak ?? 0,
+      personalBestStreak: raw.personalBestStreak ?? 0,
       rank: raw.rank ?? 0,
+      percentile: raw.percentile ?? 0,
       points: raw.points ?? 0,
+      difficultySummary,
+      problemTotals,
       activity,
     };
   },
 };
 
 // Leaderboard API
+export type LeaderboardStats = {
+  totalParticipants?: number;
+  averageSolved?: number;
+  topSubmissions?: number;
+};
+
 export const leaderboardAPI = {
   getLeaderboard: async () => {
-    // Accept both camelCase and snake_case from backend
     return apiRequest<Array<{
       username?: string;
       email?: string;
@@ -240,6 +329,13 @@ export const leaderboardAPI = {
       hardSolved?: number;
       user?: { username?: string; email?: string };
     }>>("/leaderboard");
+  },
+  getLeaderboardStats: async (): Promise<LeaderboardStats> => {
+    try {
+      return await apiRequest<LeaderboardStats>("/leaderboard/stats");
+    } catch {
+      return {};
+    }
   },
 };
 

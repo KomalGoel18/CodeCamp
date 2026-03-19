@@ -44,7 +44,7 @@ export default function ProblemCard({ problem, onClick }: ProblemCardProps) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center space-x-3 mb-3">
-              <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">
+              <h3 className="text-lg font-semibold text-white group-hover:text-emerald-400 transition-colors">
                 {problem.title}
               </h3>
               <div className={`px-3 py-1 rounded-full border ${diffColor.bg} ${diffColor.border}`}>
@@ -62,7 +62,7 @@ export default function ProblemCard({ problem, onClick }: ProblemCardProps) {
 
             <div className="flex flex-wrap gap-2">
               {problem.category && (
-                <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-xs rounded-full border border-blue-500/20">
+                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-xs rounded-full border border-emerald-500/20">
                   {problem.category}
                 </span>
               )}

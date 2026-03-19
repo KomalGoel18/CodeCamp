@@ -1,4 +1,3 @@
-// backend/controllers/testController.js
 import axios from "axios";
 import Problem from "../models/Problem.js";
 import dotenv from "dotenv";
@@ -10,6 +9,18 @@ const LANGUAGE_MAP = {
   java: 62,
   cpp: 54,
 };
+
+function wrapCode(language, code, input) {
+  if (language === "javascript") {
+    return `${code}\nconsole.log(solution(${JSON.stringify(input)}));`;
+  }
+
+  if (language === "python") {
+    return `${code}\nprint(solution(${JSON.stringify(input)}))`;
+  }
+
+  return code;
+}
 
 async function runOnJudge0(source, langId, stdin = "") {
   const url =
@@ -23,7 +34,7 @@ async function runOnJudge0(source, langId, stdin = "") {
 
   const headers = {
     "x-rapidapi-key": process.env.JUDGE0_API_KEY,
-    "x-rapidapi-host": "judge0-ce.p.rapidapi.com", // ✅ FIXED
+    "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
     "Content-Type": "application/json",
   };
 
@@ -60,10 +71,8 @@ export const runTests = async (req, res) => {
         ? problem.sampleTests
         : [];
 
-    if (sampleTests.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "No sample tests found for this problem" });
+    if (!sampleTests.length) {
+      return res.status(400).json({ message: "No sample tests found" });
     }
 
     const langKey = language.toLowerCase();
@@ -80,17 +89,12 @@ export const runTests = async (req, res) => {
       const stdin = String(t.input || "");
       const expected = String(t.expectedOutput || "").trim();
 
-      let judgeResp;
-      try {
-        judgeResp = await runOnJudge0(code, langId, stdin);
-      } catch (err) {
-        console.error("Judge0 call failed:", err?.message || err);
-        return res.status(502).json({
-          message: "Judge0 execution failed",
-        });
-      }
+      const wrappedCode = wrapCode(language, code, stdin);
+
+      const judgeResp = await runOnJudge0(wrappedCode, langId);
 
       const actual = String(judgeResp.stdout || "").trim();
+
       const ok = actual === expected;
 
       if (ok) passed++;
@@ -101,6 +105,8 @@ export const runTests = async (req, res) => {
         actual,
         passed: ok,
         status: judgeResp.status?.description,
+        stderr: judgeResp.stderr || null,
+        compile_output: judgeResp.compile_output || null,
       });
     }
 
@@ -111,6 +117,7 @@ export const runTests = async (req, res) => {
     });
   } catch (err) {
     console.error("runTests error:", err);
+
     return res.status(500).json({
       message: "Server error",
       error: err?.message || String(err),

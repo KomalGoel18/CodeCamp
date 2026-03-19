@@ -17,7 +17,6 @@ export default function DiscussionSection({ problemId }: DiscussionSectionProps)
       <div className="text-center py-12 bg-gray-800/50 rounded-lg border border-gray-700">
         <MessageSquare className="w-12 h-12 text-gray-600 mx-auto mb-3" />
         <p className="text-gray-400">Discussion feature coming soon!</p>
-        <p className="text-gray-500 text-sm mt-2">This feature will be available once the backend API is implemented.</p>
       </div>
     </div>
   );

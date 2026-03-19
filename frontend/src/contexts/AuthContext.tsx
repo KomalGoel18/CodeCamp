@@ -1,5 +1,6 @@
 // frontend/src/contexts/AuthContext.tsx
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { API_BASE_URL } from "../lib/api";
 
 export type User = {
   _id?: string;
@@ -22,7 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const apiBase = import.meta.env.VITE_API_BASE_URL ?? "https://solveon-backend.onrender.com";
+  const apiBase = API_BASE_URL;
 
   // helper to read backend error shapes
   const parseError = async (res: Response) => {
@@ -48,7 +49,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       try {
-        const res = await fetch(`${apiBase}/auth/me`, {
+
+        // Backend exposes GET /api/users/me (protected). /api/auth/me is not currently routed.
+        const res = await fetch(`${apiBase}/users/me`, {
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         });
         if (!res.ok) {
@@ -59,8 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         const data = await res.json();
-        // controller returns { user }
-        setUser(data.user ?? data);
+        setUser(data);
       } catch (err) {
         localStorage.removeItem("token");
         setUser(null);

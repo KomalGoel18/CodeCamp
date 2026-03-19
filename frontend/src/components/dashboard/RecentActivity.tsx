@@ -23,6 +23,7 @@ interface SubmissionItem {
 
 interface RecentActivityProps {
   submissions: SubmissionItem[];
+  compact?: boolean;
 }
 
 const statusConfig = {
@@ -85,22 +86,25 @@ const difficultyColors = {
   hard: "text-red-400",
 } as const;
 
-export default function RecentActivity({ submissions }: RecentActivityProps) {
+export default function RecentActivity({ submissions, compact = false }: RecentActivityProps) {
+  const emptyState = (
+    <div className="text-center py-8">
+      <p className="text-gray-400">No submissions yet. Start solving problems!</p>
+    </div>
+  );
+
   if (!submissions || submissions.length === 0) {
+    if (compact) return emptyState;
     return (
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <h2 className="text-xl font-bold text-white mb-6">Recent Activity</h2>
-        <div className="text-center py-12">
-          <p className="text-gray-400">No submissions yet. Start solving problems!</p>
-        </div>
+        {emptyState}
       </div>
     );
   }
 
-  return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-      <h2 className="text-xl font-bold text-white mb-6">Recent Activity</h2>
-      <div className="space-y-3">
+  const list = (
+    <div className="space-y-3">
         {submissions.map((submission, idx) => {
           // verdict may live in `verdict` or `status`. Prefer 'verdict'.
           const rawStatus = (submission.verdict || submission.status || "pending").toString();
@@ -125,7 +129,7 @@ export default function RecentActivity({ submissions }: RecentActivityProps) {
                   <Icon className={`w-5 h-5 ${config.color}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium truncate group-hover:text-blue-400 transition-colors">
+                  <p className="text-white font-medium truncate group-hover:text-emerald-400 transition-colors">
                     {problem?.title || "Unknown Problem"}
                   </p>
                   <div className="flex items-center space-x-3 mt-1">
@@ -153,6 +157,13 @@ export default function RecentActivity({ submissions }: RecentActivityProps) {
           );
         })}
       </div>
+  );
+
+  if (compact) return list;
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <h2 className="text-xl font-bold text-white mb-6">Recent Activity</h2>
+      {list}
     </div>
   );
 }

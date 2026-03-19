@@ -2,6 +2,9 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import authRoutes from "./routes/authRoutes.js";
 import problemRoutes from "./routes/problemRoutes.js";
@@ -21,6 +24,7 @@ if (!process.env.MONGO_URI) {
 
 const app = express();
 
+
 /* ✅ SAFE CORS (no domain chasing) */
 app.use(
   cors({
@@ -29,7 +33,21 @@ app.use(
   })
 );
 
+// Avoid conditional 304 responses for API JSON (keeps clients simple).
+app.set("etag", false);
+
 app.use(express.json());
+
+
+// Force no-store cache headers for API responses
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/")) {
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Pragma", "no-cache");
+  }
+  next();
+});
+
 
 /* ✅ CONNECT MONGODB (clean, modern) */
 mongoose
@@ -37,7 +55,7 @@ mongoose
   .then(() => console.log("✅ MongoDB connected"))
   .catch(err => {
     console.error("❌ MongoDB connection failed:", err);
-    process.exit(1);
+    console.log("⚠️ Server continuing without database connection");
   });
 
 /* ROUTES */

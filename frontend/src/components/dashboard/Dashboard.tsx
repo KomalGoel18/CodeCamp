@@ -1,153 +1,205 @@
-// frontend/src/components/dashboard/Dashboard.tsx
-import { useEffect, useState } from 'react';
-import { Target, Flame, Trophy, CheckCircle2, Activity } from 'lucide-react';
-import { dashboardAPI, submissionsAPI } from '../../lib/api';
-import { useAuth } from '../../contexts/AuthContext';
-import StatsCard from './StatsCard';
-//import ActivityChart from './ActivityChart';
-import RecentActivity from './RecentActivity';
+import { useEffect, useState, useMemo } from "react";
+import {
+  Medal,
+  Star,
+  Flame,
+  Share2,
+  Calendar,
+  ChevronUp,
+} from "lucide-react";
+import { dashboardAPI, submissionsAPI, usersAPI } from "../../lib/api";
+import { useAuth } from "../../contexts/AuthContext";
+import StatCard from "../ui/StatCard";
+import GlassCard from "../ui/GlassCard";
+import ActivityHeatmap from "./ActivityHeatmap";
+import DonutChart from "./DonutChart";
+import RecentActivity from "./RecentActivity";
+
+interface SubmissionItem {
+  createdAt?: string | number;
+  created_at?: string | number;
+  problem?: { title?: string; difficulty?: string };
+  problems?: { title?: string; difficulty?: string };
+  verdict?: string;
+  status?: string;
+  executionTime?: number;
+  runtime?: number;
+  _id?: string;
+  id?: string;
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
+
+  const [profile, setProfile] = useState<{ createdAt?: string; email?: string } | null>(null);
+
   const [stats, setStats] = useState({
     problemsSolved: 0,
     totalSubmissions: 0,
     acceptanceRate: 0,
     streak: 0,
+    personalBestStreak: 0,
     rank: 0,
+    percentile: 0,
     points: 0,
-    activity: [] as Array<{ date: string; submissions?: number; solved?: number; value?: number }>,
+    difficultySummary: { easy: 0, medium: 0, hard: 0 },
+    problemTotals: { easy: 1, medium: 1, hard: 1, total: 3 },
+    activity: [] as Array<{ date: string; value: number }>,
   });
-  const [recentSubmissions, setRecentSubmissions] = useState<any[]>([]);
+
+  const [recentSubmissions, setRecentSubmissions] = useState<SubmissionItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [welcomeMessage, setWelcomeMessage] = useState('Welcome back!');
-  const [range, setRange] = useState<'7D' | '30D' | '1Y'>('7D');
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning ☀️";
+    if (hour < 17) return "Good Afternoon 🌤️";
+    if (hour < 21) return "Good Evening 🌙";
+    return "Welcome Back ✨";
+  };
 
   useEffect(() => {
-    if (user) {
-      fetchDashboardData();
-    }
-    // refetch whenever user or range changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, range]);
+    if (user) fetchDashboardData();
+  }, [user]);
 
   const fetchDashboardData = async () => {
-  if (!user) return;
+    try {
+      const [dashboardData, submissions, myProfile] = await Promise.all([
+        dashboardAPI.getDashboardData(),
+        submissionsAPI.getSubmissionsByUser(),
+        usersAPI.getMyProfile().catch(() => null),
+      ]);
 
-  try {
-    // 1) Dashboard numbers directly from backend (with range)
-    const dashboardData = await dashboardAPI.getDashboardData({ range });
+      if (myProfile) setProfile(myProfile);
 
-    // 2) Submissions only for recent activity list & chart fallback
-    const submissions = await submissionsAPI.getSubmissionsByUser();
+      setStats({
+        problemsSolved: dashboardData.totalSolved,
+        totalSubmissions: dashboardData.totalSubmissions,
+        acceptanceRate: dashboardData.acceptanceRate,
+        streak: dashboardData.currentStreak,
+        personalBestStreak: dashboardData.personalBestStreak,
+        rank: dashboardData.rank,
+        percentile: dashboardData.percentile,
+        points: dashboardData.points,
+        difficultySummary: dashboardData.difficultySummary,
+        problemTotals: dashboardData.problemTotals,
+        activity: dashboardData.activity,
+      });
 
-    setWelcomeMessage(
-      dashboardData.welcomeMessage || `Welcome back, ${user.username}!`
-    );
+      setRecentSubmissions(submissions.slice(0, 10));
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setStats({
-      problemsSolved: dashboardData.totalSolved,
-      totalSubmissions: dashboardData.totalSubmissions,
-      acceptanceRate: dashboardData.acceptanceRate,
-      streak: dashboardData.currentStreak,
-      rank: dashboardData.rank,
-      points: dashboardData.points,
-      activity: dashboardData.activity,
-    });
+  const activityForHeatmap = useMemo(() => stats.activity, [stats.activity]);
 
-    // Recent activity list (purely backend data, just reshaped)
-    const transformedSubmissions = submissions.slice(0, 10).map((sub: any) => ({
-      id: sub._id,
-      problem_id: sub.problem?._id || sub.problem,
-      language: sub.language,
-      status: (sub.verdict || sub.status || '').toLowerCase() || 'pending',
-      runtime: sub.executionTime,
-      memory: sub.memory,
-      created_at: sub.createdAt || sub.created_at,
-      problems: sub.problem
-        ? {
-            title: sub.problem.title,
-            difficulty: sub.problem.difficulty,
-          }
-        : null,
-    }));
-
-    setRecentSubmissions(transformedSubmissions);
-  } catch (error) {
-    console.error('Error fetching dashboard data:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  const joinedDate = profile?.createdAt ? new Date(profile.createdAt) : new Date();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-2 border-emerald-500 border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            {welcomeMessage}
-          </h1>
-          <p className="text-gray-400">Here's your coding progress overview</p>
+    <div className="p-6 lg:p-8">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <p className="text-3xl font-bold text-white">
+            {getGreeting()}, {user?.username}
+          </p>
+          <p className="text-gray-400 mt-1">Ready to solve more problems today?</p>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Problems Solved"
-            value={stats.problemsSolved}
-            icon={CheckCircle2}
-            color="blue"
-          />
-          <StatsCard
-            title="Total Submissions"
-            value={stats.totalSubmissions}
-            icon={Activity}
-            color="cyan"
-          />
-          <StatsCard
-            title="Acceptance Rate"
-            value={`${stats.acceptanceRate}%`}
-            icon={Target}
-            color="green"
-          />
-          <StatsCard
-            title="Current Streak"
-            value={`${stats.streak} days`}
-            icon={Flame}
-            color="orange"
-          />
-        </div>
+      <GlassCard className="p-6 mb-8 border-gray-700/50">
+        <div className="flex justify-between items-center">
+          <div className="flex gap-4 items-center">
+            <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700">
+              <img
+                src={`https://ui-avatars.com/api/?name=${user?.username}&background=111827&color=10b981`}
+                alt="profile"
+              />
+            </div>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-            <h2 className="text-xl font-bold text-white mb-6">Your Stats</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-blue-500/10 p-2 rounded-lg">
-                    <Trophy className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Global Rank</p>
-                    <p className="text-lg font-semibold text-white">#{stats.rank || 'Unranked'}</p>
-                  </div>
-                </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">{user?.username}</h1>
+              <div className="text-gray-400 text-sm">{user?.email}</div>
+              <div className="flex items-center gap-1 text-sm text-gray-400 mt-1">
+                <Calendar className="w-4 h-4" />
+                Joined {joinedDate.toLocaleString("default", { month: "long" })}{" "}
+                {joinedDate.getFullYear()}
               </div>
-
             </div>
           </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                const profileUrl = `${window.location.origin}/profile/${user?.username}`;
+                navigator.clipboard.writeText(profileUrl);
+                alert("Profile link copied 🚀");
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800/50"
+            >
+              <Share2 className="w-4 h-4" />
+              Share Profile
+            </button>
+          </div>
+        </div>
+      </GlassCard>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <StatCard
+          title="Global Rank"
+          value={`#${stats.rank}`}
+          icon={Medal}
+          trend={
+            <span className="flex items-center gap-1 text-emerald-400">
+              <ChevronUp className="w-4 h-4" />
+              Top {Math.max(stats.percentile, 1)}%
+            </span>
+          }
+        />
+
+        <StatCard
+          title="Total Points"
+          value={stats.points}
+          icon={Star}
+          subtitle={`${stats.totalSubmissions} submissions`}
+          variant="emerald"
+        />
+
+        <StatCard
+          title="Current Streak"
+          value={`${stats.streak} Days`}
+          icon={Flame}
+          subtitle={`Best: ${stats.personalBestStreak} Days`}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <GlassCard className="p-6 border-gray-700/50">
+          <h2 className="text-lg font-bold text-white mb-4">Activity Overview</h2>
+          <ActivityHeatmap activity={activityForHeatmap} />
+        </GlassCard>
+
+        <GlassCard className="p-6 border-gray-700/50">
+          <h2 className="text-lg font-bold text-white mb-4">Acceptance Rate</h2>
+          <DonutChart value={stats.problemsSolved} total={stats.totalSubmissions || 1} label="" />
+        </GlassCard>
+      </div>
+
+      <GlassCard className="p-6 border-gray-700/50">
+        <div className="mb-4">
+          <h2 className="text-lg font-bold text-white">Recent Activity</h2>
         </div>
 
-        <div className="bg-gray-900border-gray-800 rounded-xl p-6">
-  <RecentActivity submissions={recentSubmissions} />
-</div>
-
-      </div>
+        <RecentActivity compact submissions={recentSubmissions} />
+      </GlassCard>
+    </div>
   );
 }

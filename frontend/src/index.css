@@ -88,3 +88,10 @@
 *::-webkit-scrollbar-thumb:hover {
   background-color: #4b5563;
 }
+
+/* Design system: emerald accent, soft borders */
+:root {
+  --accent-emerald: #10b981;
+  --accent-emerald-muted: rgba(16, 185, 129, 0.2);
+  --border-soft: rgba(75, 85, 99, 0.3);
+}

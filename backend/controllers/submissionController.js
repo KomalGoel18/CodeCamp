@@ -6,21 +6,38 @@ import User from "../models/User.js";
 
 dotenv.config();
 
-const RAPIDAPI_KEY = process.env.JUDGE0_API_KEY; // ensure correct variable
+const RAPIDAPI_KEY = process.env.JUDGE0_API_KEY;
 const RAPIDAPI_HOST = process.env.JUDGE0_HOST || "judge0-ce.p.rapidapi.com";
 
-// ✅ Submit code for a problem
+function wrapCode(language, code, input) {
+  if (language === "javascript") {
+    return `${code}\nconsole.log(solution(${JSON.stringify(input)}));`;
+  }
+
+  if (language === "python") {
+    return `${code}\nprint(solution(${JSON.stringify(input)}))`;
+  }
+
+  return code;
+}
+
 export const submitSolution = async (req, res) => {
   try {
-    const { problemId, code, language } = req.body;
+    const { problemId, problemNumber, code, language } = req.body;
     const userId = req.user._id;
 
-    const problem = await Problem.findById(problemId);
+    let problem = null;
+
+    if (problemId && /^[0-9a-fA-F]{24}$/.test(String(problemId))) {
+      problem = await Problem.findById(problemId);
+    } else if (problemNumber !== undefined) {
+      problem = await Problem.findOne({ problemNumber: Number(problemNumber) });
+    }
+
     if (!problem) {
       return res.status(404).json({ message: "Problem not found" });
     }
 
-    // ✅ Create submission (pending)
     const submission = await Submission.create({
       user: userId,
       problem: problem._id,
@@ -31,7 +48,8 @@ export const submitSolution = async (req, res) => {
     });
 
     const hiddenTests = problem.hiddenTests || [];
-    if (hiddenTests.length === 0) {
+
+    if (!hiddenTests.length) {
       submission.verdict = "Internal Error";
       await submission.save();
       return res.status(500).json({ message: "No hidden tests configured" });
@@ -45,7 +63,7 @@ export const submitSolution = async (req, res) => {
       const response = await axios.post(
         `https://${RAPIDAPI_HOST}/submissions?base64_encoded=false&wait=true`,
         {
-          source_code: code,
+          source_code: wrapCode(language, code, test.input),
           language_id: mapLanguage(language),
           stdin: test.input,
         },
@@ -61,14 +79,13 @@ export const submitSolution = async (req, res) => {
 
       const result = response.data;
 
-      // ❌ Compilation / Runtime / TLE
       if (result.status.id !== 3) {
         verdict = mapJudge0Status(result.status);
         break;
       }
 
-      const actual = (result.stdout || "").trim();
-      const expected = test.expectedOutput.trim();
+      const actual = String(result.stdout || "").trim();
+      const expected = String(test.expectedOutput || "").trim();
 
       maxTime = Math.max(maxTime, Number(result.time || 0));
       maxMemory = Math.max(maxMemory, Number(result.memory || 0));
@@ -79,27 +96,27 @@ export const submitSolution = async (req, res) => {
       }
     }
 
-    // ✅ Update submission
     submission.verdict = verdict;
     submission.executionTime = maxTime;
     submission.memory = maxMemory;
     await submission.save();
 
-    // ✅ Update user stats (FIXED)
     const user = await User.findById(userId);
+
     user.totalSubmissions = (user.totalSubmissions || 0) + 1;
 
     if (verdict === "Accepted") {
       const solvedBefore = await Submission.exists({
         user: userId,
-        problem: problemId,
+        problem: problem._id,
         verdict: "Accepted",
-        _id: { $ne: submission._id }, // 🔥 FIX
+        _id: { $ne: submission._id },
       });
 
       if (!solvedBefore) {
         user.totalSolved = (user.totalSolved || 0) + 1;
       }
+
       user.lastSolvedAt = new Date();
     }
 
@@ -111,17 +128,19 @@ export const submitSolution = async (req, res) => {
     });
   } catch (error) {
     console.error("Submission Error:", error);
-    return res.status(500).json({
+
+    res.status(500).json({
       message: "Error submitting code",
       error: error.message,
     });
   }
 };
 
-// ✅ Get all submissions by user
 export const getSubmissionsByUser = async (req, res) => {
   try {
-    const submissions = await Submission.find({ user: req.user._id })
+    const submissions = await Submission.find({
+      user: req.user._id,
+    })
       .populate("problem", "title difficulty category problemNumber")
       .sort({ createdAt: -1 });
 
@@ -134,14 +153,16 @@ export const getSubmissionsByUser = async (req, res) => {
   }
 };
 
-// ✅ Get submission result by ID
 export const getSubmissionResult = async (req, res) => {
   try {
     const submission = await Submission.findById(req.params.id)
       .populate("problem", "title difficulty category problemNumber");
 
-    if (!submission)
-      return res.status(404).json({ message: "Submission not found" });
+    if (!submission) {
+      return res.status(404).json({
+        message: "Submission not found",
+      });
+    }
 
     res.status(200).json(submission);
   } catch (error) {
@@ -152,7 +173,6 @@ export const getSubmissionResult = async (req, res) => {
   }
 };
 
-// ✅ Helper: Map language names to Judge0 IDs
 const mapLanguage = (lang) => {
   const languages = {
     cpp: 54,
@@ -161,12 +181,13 @@ const mapLanguage = (lang) => {
     java: 62,
     javascript: 63,
   };
+
   return languages[lang.toLowerCase()] || 63;
 };
 
-// ✅ Helper: Map Judge0 status.id → Verdict
 const mapJudge0Status = (status) => {
   const id = status?.id;
+
   switch (id) {
     case 3:
       return "Accepted";

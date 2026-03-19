@@ -57,7 +57,7 @@ export default function FilterPanel({ filters, setFilters, allProblems }: Filter
                   value={diff}
                   checked={filters.difficulty === diff}
                   onChange={(e) => setFilters({ ...filters, difficulty: e.target.value })}
-                  className="w-4 h-4 text-blue-500 focus:ring-blue-500 focus:ring-2 bg-gray-800 border-gray-700"
+                  className="w-4 h-4 text-emerald-500 focus:ring-emerald-500 focus:ring-2 bg-gray-800 border-gray-700"
                 />
                 <span className="text-gray-300 group-hover:text-white transition-colors capitalize">
                   {diff}
@@ -72,7 +72,7 @@ export default function FilterPanel({ filters, setFilters, allProblems }: Filter
           <select
             value={filters.category}
             onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
           >
             <option value="all">All Categories</option>
             {categories.map((cat) => (
@@ -94,7 +94,7 @@ export default function FilterPanel({ filters, setFilters, allProblems }: Filter
                   value={status}
                   checked={filters.status === status}
                   onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                  className="w-4 h-4 text-blue-500 focus:ring-blue-500 focus:ring-2 bg-gray-800 border-gray-700"
+                  className="w-4 h-4 text-emerald-500 focus:ring-emerald-500 focus:ring-2 bg-gray-800 border-gray-700"
                 />
                 <span className="text-gray-300 group-hover:text-white transition-colors capitalize">
                   {status}
@@ -114,7 +114,7 @@ export default function FilterPanel({ filters, setFilters, allProblems }: Filter
               onClick={() => toggleTag(tag)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 filters.tags.includes(tag)
-                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                   : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600 hover:text-white'
               }`}
             >

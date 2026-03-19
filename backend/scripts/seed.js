@@ -3,10 +3,10 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Problem from "../models/Problem.js";
 import Counter from "../models/Counter.js";
+import Submission from "../models/Submission.js";
 
 if (!process.env.MONGO_URI) {
   throw new Error("MONGO_URI is not defined");
@@ -80,13 +80,17 @@ async function seed() {
 
     console.log("Connected to MongoDB:", MONGO);
 
-    // Clear certain collections (optional)
-    await User.deleteMany({});
-    await Problem.deleteMany({});
-    await Counter.deleteMany({});
+    const reset = String(process.env.SEED_RESET || "").toLowerCase() === "true";
+    const seedUserEmail = process.env.SEED_USER_EMAIL || "";
 
-    // import bcrypt is no longer needed here – you can remove that line
-// import bcrypt from "bcryptjs";
+    // Clear certain collections ONLY if explicitly requested.
+    // Default is NON-DESTRUCTIVE to avoid wiping real accounts.
+    if (reset) {
+      await Submission.deleteMany({});
+      await Problem.deleteMany({});
+      await Counter.deleteMany({});
+      console.log("SEED_RESET=true -> cleared submissions, problems, counters");
+    }
 
 const adminEmail = "admin@SolveOn.local";
 let admin = await User.findOne({ email: adminEmail });
@@ -96,7 +100,6 @@ if (!admin) {
     email: adminEmail,
     // plain password – will be hashed by User pre('save')
     password: "Admin@123",
-    role: "admin",
     totalSolved: 0,
     totalSubmissions: 0,
   });
@@ -141,6 +144,67 @@ if (!admin) {
       });
 
       console.log("Created problem:", created.title, "number:", created.problemNumber);
+    }
+
+    // Optionally seed a couple of Accepted submissions so dashboard isn't empty.
+    // Picks the specified SEED_USER_EMAIL if provided; otherwise picks the first non-admin user.
+    const targetUser =
+      (seedUserEmail ? await User.findOne({ email: seedUserEmail }) : null) ||
+      (await User.findOne({ email: { $ne: adminEmail } })) ||
+      admin;
+
+    const problems = await Problem.find({}).sort({ problemNumber: 1 }).limit(2);
+    if (targetUser && problems.length > 0) {
+      const createdSubs = [];
+      for (const pr of problems) {
+        const already = await Submission.findOne({
+          user: targetUser._id,
+          problem: pr._id,
+          verdict: "Accepted",
+        });
+        if (already) continue;
+
+        const sub = await Submission.create({
+          user: targetUser._id,
+          problem: pr._id,
+          problemNumber: pr.problemNumber,
+          code: "// seeded accepted submission",
+          language: "javascript",
+          verdict: "Accepted",
+          executionTime: 0.01,
+          memory: 1024,
+        });
+        createdSubs.push(sub._id.toString());
+      }
+
+      if (createdSubs.length > 0) {
+        // Update user aggregates to match newly created accepted submissions.
+        const acceptedDistinctProblems = await Submission.distinct("problem", {
+          user: targetUser._id,
+          verdict: "Accepted",
+        });
+        const totalSubmissions = await Submission.countDocuments({ user: targetUser._id });
+        await User.updateOne(
+          { _id: targetUser._id },
+          {
+            $set: {
+              totalSolved: acceptedDistinctProblems.length,
+              totalSubmissions,
+              lastSolvedAt: new Date(),
+            },
+          }
+        );
+        console.log(
+          "Seeded accepted submissions for:",
+          targetUser.email,
+          "newSubmissions:",
+          createdSubs.length
+        );
+      } else {
+        console.log("Accepted submissions already present; skipping submission seeding.");
+      }
+    } else {
+      console.log("No target user or no problems found; skipping submission seeding.");
     }
 
     console.log("Seeding complete.");
