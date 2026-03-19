@@ -1,187 +1,86 @@
-## SolveOn
+# SolveOn
 
-SolveOn is a **full‑stack coding practice platform**. It provides a modern, dark‑themed web UI for solving algorithmic problems with a real‑time code runner, submissions tracking, dashboard analytics, and leaderboards, backed by a Node/Express + MongoDB API.
+SolveOn is a modern, full-stack coding platform that allows users to solve programming problems, track their activity streaks, view their performance on a comprehensive dashboard, and compete on a global leaderboard. The platform supports secure code execution and maintains reliable metrics via a MongoDB backend.
 
-### Features
+## 🚀 Features
 
-- **Authentication & Accounts**: Email/password signup, login, password reset, and protected routes in the frontend.
-- **Problems Library**: Filterable/sortable list of coding problems with difficulty, tags, and rich problem detail pages.
-- **Built‑in Editor & Runner**: In‑browser code editor with multi‑language starter code (JavaScript, Python, Java, C++) and test runner.
-- **Submissions & History**: Submit solutions, view verdicts (accepted, wrong answer, etc.), and see recent activity.
-- **Dashboard Analytics**: Streaks, problems solved, total submissions, acceptance rate, points, rank, and activity timeline.
-- **Leaderboards**: Global rankings with points and streak info.
-- **Discussions**: Per‑problem discussion threads and replies.
+- **User Authentication**: Secure login and registration system using JWT and `bcryptjs`.
+- **Problem Solving**: Interactive code editor workspace powered by Monaco Editor for writing and testing code.
+- **Secure Code Execution**: Submit code to be evaluated against preset test cases.
+- **Progress Tracking**: Track problems solved, acceptance rates, current/best streaks, and rank percentile directly retrieved from the backend.
+- **Leaderboard**: Global ranking system based on total points and problem difficulty.
+- **Dashboard Analytics**: Visual representation of weekly coding activity and personal statistics.
 
-### Tech Stack
-
-- **Frontend**: React 18, TypeScript, Vite, React Router, Tailwind CSS, Lucide icons.
-- **Backend**: Node.js, Express 5, MongoDB (Mongoose).
-- **Auth & Security**: JWT‑based auth, protected API routes, cookies/local storage for tokens.
-- **Other Services**: Judge0 (or similar) integration for code execution.
-
-## Project Structure
-
-High‑level layout:
-
-- `frontend/` – Vite + React + TypeScript SPA.
-- `backend/` – Express + Mongoose REST API.
-- Root‑level `package.json` – shared editor/dev dependencies for the monorepo.
-
-Key backend modules (in `backend/`):
-
-- `server.js` – Express app bootstrap, MongoDB connection, and route mounting.
-- `routes/` – Feature routes: `authRoutes`, `problemRoutes`, `submissionRoutes`, `userRoutes`, `testRoutes`, `codeExecutionRoutes`, `leaderboardRoutes`, `dashboardRoutes`.
-- `controllers/` – Business logic for auth, problems, submissions, dashboard, leaderboard, code execution, etc.
-- `models/` – Mongoose models: `User`, `Problem`, `Submission`, `Counter`, and more.
-- `utils/` – Helpers such as `judge0Client` for code execution and `mailer` for email.
-- `middleware/` – Auth (`protect`) and error handling.
-
-Key frontend modules (in `frontend/`):
-
-- `src/App.tsx` – Routing and protected application shell.
-- `src/contexts/AuthContext.tsx` – Authentication state and helpers.
-- `src/lib/api.ts` – Typed API client wrapping the backend (`/auth`, `/problems`, `/submissions`, `/tests`, `/dashboard`, `/leaderboard`, etc.).
-- `src/components/` – UI:
-  - `auth/` – `LoginPage`, `SignupPage`, `ResetPasswordPage`.
-  - `dashboard/` – `Dashboard`, `StatsCard`, `RecentActivity`.
-  - `problems/` – `ProblemsPage`, `ProblemDetailPage`, `CodeEditor`, `TestResults`, `DiscussionSection`, filters and cards.
-  - `leaderboard/` – `LeaderboardPage`.
-  - `layout/` – `Navbar` and shell components.
-
-The frontend also includes a detailed `SETUP.md` specific to the UI and Supabase‑style schema inspiration.
-
-## Setup & Installation
-
-### Prerequisites
-
-- Node.js 18+ installed.
-- Local MongoDB instance or hosted MongoDB URI.
-
-### 1. Clone and install dependencies
-
-```bash
-git clone <https://github.com/KomalGoel18/SolveOn>
-cd SolveOn
-
-# install root‑level tooling deps (optional, for editors)
-npm install
-
-# install backend deps
-cd backend
-npm install
-
-# install frontend deps
-cd ../frontend
-npm install
-```
-
-### 2. Configure environment variables
-
-#### Backend (`backend/.env`)
-
-The backend expects at least:
-
-```env
-MONGO_URI=mongodb://127.0.0.1:27017/solveon
-PORT=5000
-JWT_SECRET=local_dev_secret
-
-# Optional, for email features
-SMTP_HOST=...
-SMTP_PORT=587
-SMTP_USER=...
-SMTP_PASS=...
-```
-
-> A sample `.env` is already present in `backend/.env` for local development. Update it as needed for your environment.
-
-#### Frontend (`frontend/.env.local` or `.env`)
-
-The frontend talks to the API via `VITE_API_BASE_URL`:
-
-```env
-# Local development
-VITE_API_BASE_URL=http://localhost:5000/api
-
-# Example production
-VITE_API_BASE_URL=https://solveon-backend.onrender.com/api
-```
-
-`frontend/.env.local` is preconfigured for local dev; adjust for your own backend URL if different.
-
-## Running the app locally
-
-### 1. Start the backend (API)
-
-```bash
-cd backend
-npm run dev    # nodemon server.js, listens on PORT (default 5000)
-```
-
-This will:
-
-- Load configuration from `backend/.env`.
-- Connect to MongoDB via `MONGO_URI`.
-- Expose REST endpoints under `/api/*` (e.g. `/api/auth`, `/api/problems`, `/api/submissions`, `/api/dashboard`, `/api/leaderboard`, `/api/code/execute`, etc.).
-- Provide a basic health check at `/api/health`.
-
-### 2. Start the frontend (SPA)
-
-In a separate terminal:
-
-```bash
-cd frontend
-npm run dev
-```
-
-By default Vite runs on `http://localhost:5173` and proxies requests to the backend via `VITE_API_BASE_URL` (make sure this points to your backend).
-
-You can now sign up, browse problems, run code, submit solutions, see your dashboard, and check leaderboards.
-
-## Build & Production
+## 🛠 Tech Stack
 
 ### Frontend
-
-```bash
-cd frontend
-npm run build      # create optimized production build
-npm run preview    # preview the production build locally
-```
-
-Serve the built assets (`frontend/dist`) behind any static file host, configured to forward `/api/*` to the backend.
+- **Framework**: React 18 with TypeScript, built using Vite
+- **Styling**: Tailwind CSS for responsive and modern UI
+- **Routing**: React Router v7
+- **Code Editor**: `@monaco-editor/react`
+- **Icons**: Lucide React
 
 ### Backend
+- **Runtime**: Node.js
+- **Framework**: Express.js
+- **Database**: MongoDB with Mongoose ORM
+- **Security & Auth**: JSON Web Tokens (JWT) in HttpOnly cookies, CORS protection, bcrypt hashing
+- **Mailing**: Nodemailer (available for future notifications/recovery)
 
+## 📁 Project Structure
+
+This project uses a standalone directory structure for both sub-projects:
+
+- `/frontend/` - Contains the React Vite application.
+- `/backend/` - Contains the Express API and Mongoose models.
+
+## 🚦 Local Development Setup
+
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v18+ recommended)
+- [MongoDB](https://www.mongodb.com/) (Local installation or MongoDB Atlas cluster)
+
+### 1. Clone the Repository
 ```bash
-cd backend
-npm run start      # node server.js
+git clone https://github.com/KomalGoel18/SolveOn
+cd SolveOn
 ```
 
-Deploy the backend to your preferred Node hosting (Render, Railway, Heroku‑like platforms, own server, etc.), ensuring:
+### 2. Backend Configuration
+Navigate to the `backend` directory and install the necessary dependencies:
+```bash
+cd backend
+npm install
+```
 
-- Environment variables (`MONGO_URI`, `JWT_SECRET`, `PORT`, SMTP settings) are configured.
-- The frontend’s `VITE_API_BASE_URL` points to the deployed backend’s `/api` base URL.
+Create a `.env` file in the `backend/` directory. You will need at least the following variables:
+```env
+PORT=5000
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_super_secret_jwt_key
+NODE_ENV=development
+```
 
-## API Overview
+Start the backend development server using nodemon:
+```bash
+npm run dev
+```
+The server should start on `http://localhost:5000`.
 
-All endpoints are prefixed with `/api`:
+### 3. Frontend Configuration
+Open a new terminal, navigate to the `frontend` directory, and install the dependencies:
+```bash
+cd frontend
+npm install
+```
 
-- **Auth**: `/api/auth/register`, `/api/auth/login`, `/api/auth/forgot-password`, `/api/auth/reset-password/:token`.
-- **Problems**: `/api/problems` (list with filters), `/api/problems/:number` (single problem by number).
-- **Submissions**: `/api/submissions` (submit), `/api/submissions/user` (current user history), `/api/submissions/:id`.
-- **Tests**: `/api/tests/run` – run code against sample tests for a problem.
-- **Code Execution**: `/api/code/execute` – direct Judge0‑style execution endpoint.
-- **Dashboard**: `/api/dashboard` – stats, streak, points, activity.
-- **Leaderboard**: `/api/leaderboard` – ranking and stats.
-- **Users**: `/api/users/*` – user‑related endpoints (profile, etc.).
+If necessary, configure environments inside `frontend/.env.local`:
+```env
+VITE_API_URL=http://localhost:5000/api
+```
 
-Some routes require a valid JWT in the `Authorization: Bearer <token>` header.
-
-## Development Notes
-
-- The codebase is written with **TypeScript on the frontend** and modern **ES modules** on the backend.
-- Frontend API helpers in `src/lib/api.ts` centralize HTTP logic and error handling.
-- Protected routes are implemented via an `AuthProvider` and `ProtectedApp` wrapper in `App.tsx`.
-- Tailwind CSS is used for all styling, with a dark, gradient‑heavy design.
-
-For more detailed UI‑specific documentation and schema notes, see `frontend/SETUP.md`.
+Start the Vite development server:
+```bash
+npm run dev
+```
+The frontend should now be running on `http://localhost:5173`.

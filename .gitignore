@@ -11,15 +11,23 @@ lerna-debug.log*
 node_modules/
 
 # Build output
-dist
-dist-ssr
-*.local
+dist/
+dist-ssr/
+build/
+coverage/
 
-# Editor folders and files
+# Caches
+.eslintcache
+.npm/
+*.tsbuildinfo
+
+# Editor folders and OS files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
@@ -28,4 +36,6 @@ dist-ssr
 
 # Environment & sensitive files
 .env
+.env.*
+*.local
 SolveOn_Collection.json
